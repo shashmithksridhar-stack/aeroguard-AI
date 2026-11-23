@@ -1,0 +1,560 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AeroGuard AI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: instrument-panel page. Header, profile strip, three tabs; verdict first, evidence below. */
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --fg:#14202b; --muted:#566676; --line:#d6dee6; --grid:#e7ecf1;
+  --accent:#0b5cad; --accent-fg:#ffffff;
+  --ok:#1b7a3d; --ok-bg:#e6f4ea; --warn:#8f5200; --warn-bg:#fff1d6; --crit:#b3261e; --crit-bg:#fce8e6;
+  --s1:#0b5cad; --s2:#b3261e; --s3:#1b7a3d; --s4:#c46b00;
+  --head:"Space Grotesk",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e151c; --surface:#16202a; --fg:#e6edf3; --muted:#94a5b5; --line:#2a3947; --grid:#212e3b;
+  --accent:#5aa9f0; --accent-fg:#08131d;
+  --ok:#55c07a; --ok-bg:#12281b; --warn:#e3a33a; --warn-bg:#2d2310; --crit:#ff7b72; --crit-bg:#33191a;
+  --s1:#5aa9f0; --s2:#ff7b72; --s3:#55c07a; --s4:#e3a33a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e151c; --surface:#16202a; --fg:#e6edf3; --muted:#94a5b5; --line:#2a3947; --grid:#212e3b;
+  --accent:#5aa9f0; --accent-fg:#08131d;
+  --ok:#55c07a; --ok-bg:#12281b; --warn:#e3a33a; --warn-bg:#2d2310; --crit:#ff7b72; --crit-bg:#33191a;
+  --s1:#5aa9f0; --s2:#ff7b72; --s3:#55c07a; --s4:#e3a33a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--head);margin:0;text-wrap:balance}
+h1{font-size:1.7rem;letter-spacing:-.01em} h2{font-size:1.15rem} h3{font-size:.95rem}
+.sub{color:var(--muted);margin:2px 0 0}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.tag{font:500 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+details.panel>summary{cursor:pointer;font-family:var(--head);font-weight:500}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;width:100%}
+input[type=range]{padding:0;accent-color:var(--accent);background:transparent;border:0}
+input[type=checkbox],input[type=radio]{width:auto}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.tabs button{font:500 .92rem var(--head);background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;background:var(--surface);font-size:.88rem}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+button.btn{font:500 .9rem var(--body);background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+button.btn.alt{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.verdict{border:2px solid var(--vc);background:var(--vb);border-radius:10px;padding:16px 18px}
+.verdict .big{font:700 2.2rem/1.1 var(--head);color:var(--vc)}
+.verdict .small{font-size:.85rem;color:var(--muted);margin-top:4px}
+.verdict.GREEN{--vc:var(--ok);--vb:var(--ok-bg)} .verdict.YELLOW{--vc:var(--warn);--vb:var(--warn-bg)} .verdict.RED{--vc:var(--crit);--vb:var(--crit-bg)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.metrics div{padding:10px 12px;border-right:1px solid var(--line);min-width:0}
+.metrics div:last-child{border-right:0}
+.metrics .k{font-size:.74rem;color:var(--muted)} .metrics .v{font:500 1.15rem var(--mono)}
+ul.find{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ul.find li{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+ul.find li:last-child{border-bottom:0}
+.pill{font:500 .68rem var(--mono);letter-spacing:.05em;border-radius:999px;padding:3px 8px;height:fit-content;text-align:center}
+.pill.critical{background:var(--crit-bg);color:var(--crit)} .pill.warning{background:var(--warn-bg);color:var(--warn)}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.info{background:var(--grid);color:var(--muted)}
+.comp{font-weight:600}
+.chart{display:flex;flex-direction:column;gap:6px}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.legend i.dash{border-top-style:dashed;border-top-width:2px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.wrapc{white-space:normal;min-width:220px}
+th{font:500 .74rem var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+td.num,th.num{font-family:var(--mono)}
+.st-OK{color:var(--ok);font-weight:600}.st-WATCH{color:var(--warn);font-weight:600}.st-ALERT{color:var(--crit);font-weight:600}
+.sliders{display:flex;flex-direction:column;gap:14px}
+.sl{display:flex;flex-direction:column;gap:2px;font-size:.84rem}
+.sl .lab{display:flex;justify-content:space-between;color:var(--muted)} .sl output{font:500 .84rem var(--mono);color:var(--fg)}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.note{font-size:.82rem;color:var(--muted)}
+.empty{color:var(--muted);padding:18px 0}
+.err{background:var(--crit-bg);color:var(--crit);border-radius:8px;padding:12px 14px}
+textarea.csv{height:90px;font:12px var(--mono)}
+.rep h3{margin-top:4px}
+@media print{.tabs,details.panel,.noprint,.seg{display:none!important}body{background:#fff}[hidden]{display:block!important}}
+@media(prefers-reduced-motion:no-preference){.verdict{transition:background .2s}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="tag">Team AeroPulse</div>
+      <h1>AeroGuard AI</h1>
+      <p class="sub">Smart health check, pre-flight simulator and logbook for commercial drones.</p>
+    </div>
+    <div class="tag">Demo uses simulated flights</div>
+  </div>
+
+  <details class="panel">
+    <summary>Drone profile and flight details</summary>
+    <div class="fields">
+      <label class="f">Battery cells (S)<select id="cells"><option>3</option><option>4</option><option selected>6</option><option>8</option><option>10</option><option>12</option></select></label>
+      <label class="f">Battery capacity (mAh)<input id="cap" type="number" value="22000" min="1000" max="60000" step="500"></label>
+      <label class="f">Battery health (%)<input id="health" type="number" value="100" min="50" max="100"></label>
+      <label class="f">Empty weight incl. battery (kg)<input id="empty" type="number" value="4.8" min="0.5" step="0.1"></label>
+      <label class="f">Max take-off weight (kg)<input id="mtow" type="number" value="7.5" min="1" step="0.1"></label>
+      <label class="f">Rotors<select id="rotors"><option selected>4</option><option>6</option><option>8</option></select></label>
+      <label class="f">Propeller diameter (in)<input id="prop" type="number" value="15" min="5" step="0.5"></label>
+      <label class="f">Cruise speed (m/s)<input id="cruise" type="number" value="10" min="3" max="20" step="0.5"></label>
+      <label class="f">Drone ID<input id="droneId" value="AP-001"></label>
+      <label class="f">Operator<input id="operator" value="Team AeroPulse"></label>
+      <label class="f">Remote pilot<input id="pilot" value=""></label>
+    </div>
+  </details>
+
+  <div class="tabs" role="tablist" aria-label="AeroGuard sections">
+    <button role="tab" id="t-health" aria-selected="true" aria-controls="p-health">1. Post-flight health check</button>
+    <button role="tab" id="t-sim" aria-selected="false" aria-controls="p-sim">2. Pre-flight simulator</button>
+    <button role="tab" id="t-log" aria-selected="false" aria-controls="p-log">3. Logbook and report</button>
+  </div>
+
+  <section id="p-health" role="tabpanel" class="stack">
+    <div class="panel stack">
+      <div class="tag">Flight log to analyse</div>
+      <div class="seg" id="src">
+        <label><input type="radio" name="src" value="healthy" checked>Sample: healthy</label>
+        <label><input type="radio" name="src" value="warning">Sample: warning</label>
+        <label><input type="radio" name="src" value="critical">Sample: critical</label>
+        <label><input type="radio" name="src" value="upload">Upload CSV</label>
+      </div>
+      <div id="uploadBox" hidden>
+        <input id="file" type="file" accept=".csv,text/csv">
+        <p class="note">Required columns: <code>time_s</code>, <code>battery_v</code> (pack voltage). Optional: <code>altitude_m</code>, <code>speed_ms</code>, <code>current_a</code>, <code>gps_sats</code>, <code>gps_hdop</code>, and per motor <code>motor1_vib</code>, <code>motor1_temp</code> and so on (vibration in m/s², temperature in °C). Set the cell count above.</p>
+      </div>
+    </div>
+    <div id="healthOut" class="stack"></div>
+  </section>
+
+  <section id="p-sim" role="tabpanel" class="stack" hidden>
+    <div class="cols">
+      <div class="panel sliders" id="simCtl">
+        <div class="sl"><div class="lab"><label for="s-dist">Route distance, one way (km)</label><output id="o-dist"></output></div><input id="s-dist" type="range" min="0.5" max="15" step="0.5" value="5"></div>
+        <label class="row" style="gap:8px"><input id="s-rt" type="checkbox" checked> Return to home (round trip)</label>
+        <div class="sl"><div class="lab"><label for="s-pay">Payload (kg)</label><output id="o-pay"></output></div><input id="s-pay" type="range" min="0" max="6" step="0.1" value="1.5"></div>
+        <div class="sl"><div class="lab"><label for="s-wind">Wind speed (m/s)</label><output id="o-wind"></output></div><input id="s-wind" type="range" min="0" max="15" step="0.5" value="4"></div>
+        <label class="f">Wind direction<select id="s-dir"><option value="0">Headwind on the way out</option><option value="90">Crosswind</option><option value="180">Tailwind on the way out</option></select></label>
+        <div class="sl"><div class="lab"><label for="s-temp">Temperature (°C)</label><output id="o-temp"></output></div><input id="s-temp" type="range" min="-5" max="45" step="1" value="30"></div>
+        <div class="sl"><div class="lab"><label for="s-elev">Site elevation (m)</label><output id="o-elev"></output></div><input id="s-elev" type="range" min="0" max="3000" step="50" value="300"></div>
+        <div class="sl"><div class="lab"><label for="s-res">Required reserve at landing (%)</label><output id="o-res"></output></div><input id="s-res" type="range" min="10" max="40" step="1" value="25"></div>
+      </div>
+      <div class="stack" id="simOut"></div>
+    </div>
+    <details class="panel">
+      <summary>How the simulator works and where it stops</summary>
+      <p class="note">Hover power comes from momentum theory: the thrust needed to carry the weight, rotor disc area, air density (temperature and elevation) and rotor and motor efficiency. Forward flight trims induced power slightly and drag grows with airspeed cubed. Wind is split into headwind and crosswind along the route at a fixed airspeed, so a headwind slows the way out and a tailwind speeds the way back; a round trip never cancels it fully. Battery energy is nominal capacity × battery health × cold-weather derating × 85% usable. This is a first-order go / no-go screen. It ignores gusts, climb profiles, spraying (payload that gets lighter) and manufacturer power curves, so calibrate it with real logs.</p>
+    </details>
+  </section>
+
+  <section id="p-log" role="tabpanel" class="stack" hidden>
+    <div class="panel stack noprint">
+      <div class="row">
+        <button class="btn" id="b-add">Add this flight to logbook</button>
+        <button class="btn alt" id="b-demo">Load demo history (3 flights)</button>
+        <button class="btn alt" id="b-copy">Copy logbook as CSV</button>
+        <button class="btn alt" id="b-clear">Clear logbook</button>
+      </div>
+      <label class="row note" style="gap:8px"><input id="incSim" type="checkbox" checked> Include the pre-flight mission plan in the report below</label>
+      <div id="copyMsg" class="note" role="status"></div>
+      <textarea id="csvBox" class="csv" readonly hidden aria-label="Logbook CSV"></textarea>
+    </div>
+    <div class="panel stack"><h2>Logbook</h2><div id="logOut" class="tw"></div></div>
+    <div class="panel stack rep" id="reportOut"></div>
+  </section>
+</div>
+
+<script>
+/*LOGIC_START*/
+const T={cellWarn:3.5,cellCrit:3.3,irWarn:6,irCrit:10,dip:0.15,vibWarn:30,vibCrit:60,vibRise:1.3,vibRiseMin:15,
+  vibImbRatio:1.5,vibImbMin:6,tempWarn:70,tempCrit:85,tempSpread:15,satsWarn:9,satsCrit:6,hdopWarn:2,hdopCrit:3,green:80,yellow:55};
+const CAPS={Battery:40,Motors:35,Temperature:15,GPS:10};
+const SEV={critical:0,warning:1,info:2,ok:3};
+const ALIAS={time:'time_s',timestamp:'time_s',t:'time_s',alt:'altitude_m',altitude:'altitude_m',voltage:'battery_v',batt_v:'battery_v',
+  battery_voltage:'battery_v',current:'current_a',batt_a:'current_a',speed:'speed_ms',groundspeed:'speed_ms',sats:'gps_sats',satellites:'gps_sats',hdop:'gps_hdop'};
+
+const mean=(a,i0=0,i1=a.length)=>{let s=0;for(let i=i0;i<i1;i++)s+=a[i];return s/Math.max(1,i1-i0)};
+const sorted=a=>Float64Array.from(a).sort();
+function quantile(a,q){const s=sorted(a),p=(s.length-1)*q,lo=Math.floor(p),hi=Math.ceil(p);return s[lo]+(s[hi]-s[lo])*(p-lo)}
+const median=a=>quantile(a,0.5);
+const maxOf=a=>{let m=-Infinity;for(const v of a)if(v>m)m=v;return m};
+const minOf=a=>{let m=Infinity;for(const v of a)if(v<m)m=v;return m};
+function countEvents(mask){let c=0;for(let i=0;i<mask.length;i++)if(mask[i]&&(i===0||!mask[i-1]))c++;return c}
+function motorIds(c,kind){const ids=[];for(const k of Object.keys(c)){const m=k.match(new RegExp('^motor(\\d+)_'+kind+'$'));if(m)ids.push(+m[1])}return ids.sort((a,b)=>a-b)}
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(lines.length<2)throw new Error('That file has no data rows.');
+  let head=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/\s+/g,'_').replace(/^"|"$/g,''));
+  head=head.map(h=>ALIAS[h]||h);
+  for(const need of ['time_s','battery_v'])if(!head.includes(need))
+    throw new Error('The flight log is missing required column(s): time_s and battery_v. Found: '+head.slice(0,10).join(', '));
+  const rows=lines.slice(1).map(l=>l.split(','));
+  const idx=[];
+  const ti=head.indexOf('time_s'),bi=head.indexOf('battery_v');
+  for(let r=0;r<rows.length;r++){const t=parseFloat(rows[r][ti]),b=parseFloat(rows[r][bi]);if(isFinite(t)&&isFinite(b))idx.push(r)}
+  idx.sort((a,b)=>parseFloat(rows[a][ti])-parseFloat(rows[b][ti]));
+  if(idx.length<20)throw new Error('The flight log has fewer than 20 valid rows, which is too short to analyse.');
+  const c={};
+  head.forEach((h,j)=>{c[h]=Float64Array.from(idx,r=>{const v=parseFloat(rows[r][j]);return isFinite(v)?v:NaN})});
+  return {n:idx.length,c};
+}
+
+/* ---------- sample flights (simulated 6S survey quadcopter) ---------- */
+const RATE=2,DUR=660,CAPAH_NOMINAL=22;
+const OCV_F=[0,.1,.2,.4,.6,.8,.9,1],OCV_V=[4.15,4.05,3.98,3.88,3.80,3.72,3.65,3.50];
+const SCEN={
+  healthy:{seed:11,capEff:22,r:3.0,dips:0,vib:[[12,12],[12.5,12.5],[11.5,11.5],[12,12.5]],temp:[58,59,57,60],sats:[14,1.0],hdop:[0.8,0.08]},
+  warning:{seed:22,capEff:19,r:6.5,dips:0,vib:[[12,12.5],[12,12.5],[13,28],[12,12.5]],temp:[58,60,72,59],sats:[11,0.8],hdop:[1.0,0.25]},
+  critical:{seed:33,capEff:9,r:11.5,dips:3,vib:[[12,13],[13,78],[12,14],[12,12.5]],temp:[60,98,61,60],sats:[9,1.5],hdop:[1.6,0.6]}};
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeNormal(rnd){return(mu,sd)=>{let u=0;while(u===0)u=rnd();const v=rnd();return mu+sd*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}}
+function interp(x,xs,ys){if(x<=xs[0])return ys[0];for(let i=1;i<xs.length;i++)if(x<=xs[i]){const f=(x-xs[i-1])/(xs[i]-xs[i-1]);return ys[i-1]+f*(ys[i]-ys[i-1])}return ys[ys.length-1]}
+const _sampleCache={};
+function generate(name){
+  if(_sampleCache[name])return _sampleCache[name];
+  const p=SCEN[name],rnd=mulberry32(p.seed),N=makeNormal(rnd),n=DUR*RATE,dt=1/RATE,CELLS=6;
+  const c={time_s:new Float64Array(n),altitude_m:new Float64Array(n),speed_ms:new Float64Array(n),battery_v:new Float64Array(n),current_a:new Float64Array(n)};
+  const steps=[];for(let i=0;i<Math.floor(n/40)+1;i++)steps.push(N(0,4));
+  for(let i=0;i<n;i++){
+    const t=i/RATE;c.time_s[i]=t;
+    let a=interp(t,[0,40,DUR-45,DUR],[0,40,40,0]);if(a>1)a+=N(0,.25);c.altitude_m[i]=a;
+    let s=interp(t,[0,40,55,DUR-60,DUR-45,DUR],[0,1,9,9,1,0]);if(s>2)s+=N(0,.4);c.speed_ms[i]=Math.max(0,s);
+    let cur=30+0.9*c.speed_ms[i]+steps[Math.floor(i/40)]+N(0,1.5);if(t<40)cur+=14*(1-t/40);c.current_a[i]=Math.max(8,cur);
+  }
+  let q=0;const cell=new Float64Array(n);
+  for(let i=0;i<n;i++){
+    if(i>0)q+=(c.current_a[i]+c.current_a[i-1])/2*dt/3600;
+    const ocv=interp(Math.min(1,q/p.capEff),OCV_F,OCV_V);
+    cell[i]=ocv-p.r/1000*c.current_a[i]+N(0,.006);
+  }
+  for(let k=0;k<p.dips;k++){const ctr=Math.floor(n*(.45+.17*k)+Math.floor(rnd()*40)-20);for(let j=ctr;j<ctr+5&&j<n;j++)cell[j]-=.30}
+  for(let i=0;i<n;i++)c.battery_v[i]=cell[i]*CELLS;
+  p.vib.forEach(([v0,v1],m)=>{
+    const vib=new Float64Array(n),tmp=new Float64Array(n),plateau=p.temp[m];
+    for(let i=0;i<n;i++){const t=i/RATE,base=v0+(v1-v0)*i/(n-1);
+      vib[i]=Math.max(1,base*(1+.04*c.speed_ms[i]/9)+N(0,1.2));
+      tmp[i]=32+(plateau-32)*(1-Math.exp(-t/180))+N(0,.4)}
+    c['motor'+(m+1)+'_vib']=vib;c['motor'+(m+1)+'_temp']=tmp});
+  c.gps_sats=new Float64Array(n);c.gps_hdop=new Float64Array(n);
+  for(let i=0;i<n;i++){const t=i/RATE;let s=N(p.sats[0],p.sats[1]);
+    if(name!=='healthy'&&t>250&&t<420)s-=(name==='critical'?2.5:1.5);
+    c.gps_sats[i]=Math.min(20,Math.max(3,Math.round(s)));
+    c.gps_hdop[i]=Math.min(9,Math.max(.5,p.hdop[0]+Math.abs(N(0,p.hdop[1]))))}
+  return _sampleCache[name]={n,c};
+}
+
+/* ---------- health engine ---------- */
+function estimateIR(c,n,cells){
+  if(!c.current_a)return null;
+  const I=c.current_a,m=mean(I);let v2=0;for(let i=0;i<n;i++)v2+=(I[i]-m)**2;
+  if(Math.sqrt(v2/n)<2)return null;
+  const t=c.time_s,V=c.battery_v,q=new Float64Array(n);
+  for(let i=1;i<n;i++)q[i]=q[i-1]+(I[i]+I[i-1])/2*(t[i]-t[i-1])/3600;
+  const A=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],B=[0,0,0,0];
+  for(let i=0;i<n;i++){const x=[1,I[i],q[i],q[i]*q[i]];for(let a=0;a<4;a++){B[a]+=x[a]*V[i];for(let b=0;b<4;b++)A[a][b]+=x[a]*x[b]}}
+  for(let i=0;i<4;i++){let p=i;for(let r=i+1;r<4;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;
+    [A[i],A[p]]=[A[p],A[i]];[B[i],B[p]]=[B[p],B[i]];if(Math.abs(A[i][i])<1e-12)return null;
+    for(let r=i+1;r<4;r++){const f=A[r][i]/A[i][i];for(let k=i;k<4;k++)A[r][k]-=f*A[i][k];B[r]-=f*B[i]}}
+  const x=[0,0,0,0];for(let i=3;i>=0;i--){let s=B[i];for(let k=i+1;k<4;k++)s-=A[i][k]*x[k];x[i]=s/A[i][i]}
+  const rPack=-x[1];return(rPack>0&&rPack<0.5)?rPack/cells*1000:null;
+}
+function analyze(df,cells){
+  const {n,c}=df,F=[],pen={Battery:0,Motors:0,Temperature:0,GPS:0};
+  const add=(severity,component,message)=>F.push({severity,component,message});
+  const cell=Float64Array.from(c.battery_v,v=>v/cells);
+  const dts=[];for(let i=1;i<n;i++)dts.push(c.time_s[i]-c.time_s[i-1]);
+  let dt=median(dts);if(!(dt>0))dt=1;
+  const cmin=minOf(cell),tail=Math.max(5,Math.floor(n/50)),cend=mean(cell,n-tail,n);
+  const lows=countEvents(Array.from(cell,v=>v<T.cellWarn));
+  const typ=median(cell);
+  if(typ>4.35)add('warning','Setup',`Voltage averages ${typ.toFixed(2)} V per cell, above the 4.2 V maximum of a LiPo cell. The cell count (S) is probably set too low, so battery results are unreliable.`);
+  else if(typ<2.9)add('warning','Setup',`Voltage averages only ${typ.toFixed(2)} V per cell. The cell count (S) is probably set too high, so battery results are unreliable.`);
+  if(cmin<T.cellCrit){pen.Battery+=30;add('critical','Battery',`Battery fell to ${cmin.toFixed(2)} V per cell (${minOf(c.battery_v).toFixed(1)} V pack), below the safe ${T.cellCrit.toFixed(2)} V floor. Over-discharge damages cells. Land earlier next time and have the pack tested before flying it again.`)}
+  else if(cmin<T.cellWarn){pen.Battery+=15;add('warning','Battery',`Battery dropped to ${cmin.toFixed(2)} V per cell (${lows} low-battery event${lows!==1?'s':''}). Cut the planned flight time or retire this pack soon.`)}
+  const ir=estimateIR(c,n,cells);
+  if(ir!==null){
+    if(ir>=T.irCrit){pen.Battery+=10;add('critical','Battery',`Battery internal resistance is very high (about ${ir.toFixed(1)} mΩ per cell). The pack is worn out and will sag hard under load. Replace it.`)}
+    else if(ir>=T.irWarn){pen.Battery+=5;add('warning','Battery',`Battery internal resistance is rising (about ${ir.toFixed(1)} mΩ per cell). Expect shorter flights and voltage sag on take-off and climbs.`)}}
+  const win=Math.max(5,Math.floor(20/dt)),dipMask=new Array(n);
+  for(let i=0;i<n;i++){const lo=Math.max(0,i-Math.floor(win/2)),hi=Math.min(n,lo+win);
+    dipMask[i]=(median(cell.subarray(lo,hi))-cell[i])>T.dip}
+  const dips=countEvents(dipMask);
+  if(dips>=1){pen.Battery+=Math.min(10,4+2*dips);add('warning','Battery',`${dips} sudden voltage dip${dips!==1?'s':''} detected (more than ${T.dip.toFixed(2)} V per cell in a moment). That points to a weak cell or a loose or corroded connector. Inspect the pack and the XT60/XT90 plug.`)}
+  if(!F.some(f=>f.component==='Battery'))add('ok','Battery',`Battery voltage stayed healthy (lowest ${cmin.toFixed(2)} V per cell, ${cend.toFixed(2)} V at landing).`);
+
+  const vibIds=motorIds(c,'vib'),tempIds=motorIds(c,'temp'),third=Math.max(3,Math.floor(n/3));
+  const rows={},flags={},order={OK:0,WATCH:1,ALERT:2};
+  const flag=(k,l)=>{if(order[l]>order[flags[k]||'OK'])flags[k]=l};
+  if(vibIds.length){
+    const means={};vibIds.forEach(k=>means[k]=mean(c['motor'+k+'_vib']));
+    let mp=0;
+    vibIds.forEach(k=>{
+      const s=c['motor'+k+'_vib'],p95=quantile(s,.95),first=mean(s,0,third),last=mean(s,n-third,n),ratio=last/Math.max(first,1e-6);
+      rows[k]=Object.assign(rows[k]||{},{avg:means[k],p95,trend:(ratio-1)*100});
+      let p=0;
+      if(p95>=T.vibCrit){p+=25;flag(k,'ALERT');add('critical','Motor #'+k,`Motor #${k} vibration is dangerously high (${p95.toFixed(0)} m/s², limit ${T.vibCrit}). Do not fly. Check propeller damage, a bent motor shaft, the bearing and the mounting screws.`)}
+      else if(p95>=T.vibWarn){p+=12;flag(k,'WATCH');add('warning','Motor #'+k,`Motor #${k} vibration is elevated (${p95.toFixed(0)} m/s², caution above ${T.vibWarn}). Check propeller balance and tighten the motor mount before the next flight.`)}
+      if(ratio>=T.vibRise&&last>=T.vibRiseMin){p+=10;flag(k,p95>=T.vibWarn?'ALERT':'WATCH');
+        add(p95<T.vibCrit?'warning':'critical','Motor #'+k,`Motor #${k} vibration is rising (${((ratio-1)*100>=0?'+':'')}${((ratio-1)*100).toFixed(0)}% from the start to the end of the flight). Check the propeller or bearing before the next flight.`)}
+      const others=vibIds.filter(j=>j!==k).map(j=>means[j]);
+      if(others.length){const om=median(others);
+        if(means[k]>T.vibImbRatio*om&&means[k]-om>=T.vibImbMin){p+=8;flag(k,'WATCH');
+          add('warning','Motor #'+k,`Motor #${k} vibrates ${(means[k]/Math.max(om,1e-6)).toFixed(1)}× more than the other motors. That usually means a bent or chipped propeller, or a worn bearing on this motor only.`)}}
+      mp+=Math.min(p,30)});
+    pen.Motors+=mp;
+    if(!F.some(f=>f.component.startsWith('Motor')))add('ok','Motors',`Vibration is low and steady on all ${vibIds.length} motors (highest P95 ${Math.max(...vibIds.map(k=>rows[k].p95)).toFixed(0)} m/s²).`);
+  }else add('info','Motors','No motor vibration columns (motor1_vib, motor2_vib, ...) found, so the vibration check was skipped.');
+
+  let maxTemp=null;
+  if(tempIds.length){
+    const tmax={};tempIds.forEach(k=>{tmax[k]=maxOf(c['motor'+k+'_temp']);rows[k]=Object.assign(rows[k]||{},{tmax:tmax[k]})});
+    maxTemp=Math.max(...Object.values(tmax));
+    const hot=+Object.keys(tmax).find(k=>tmax[k]===maxTemp),spread=maxTemp-Math.min(...Object.values(tmax));
+    if(maxTemp>=T.tempCrit){pen.Temperature+=15;flag(hot,'ALERT');add('critical','Motor #'+hot,`Motor #${hot} reached ${maxTemp.toFixed(0)} °C (limit ${T.tempCrit} °C). Overheating can melt winding insulation. Check for a dragging bearing, overload or blocked cooling air.`)}
+    else if(maxTemp>=T.tempWarn){pen.Temperature+=7;flag(hot,'WATCH');add('warning','Motor #'+hot,`Motor #${hot} ran hot (${maxTemp.toFixed(0)} °C, caution above ${T.tempWarn} °C). Let it cool fully between flights and check the load.`)}
+    else if(spread>=T.tempSpread&&maxTemp>=55){pen.Temperature+=4;flag(hot,'WATCH');add('warning','Temperature',`Motor #${hot} is ${spread.toFixed(0)} °C hotter than the coolest motor, so the load is uneven. Check that propeller, motor and ESC match on all arms.`)}
+    if(!F.some(f=>f.component==='Temperature'||(f.component.startsWith('Motor')&&f.message.includes('°C'))))add('ok','Temperature',`Motor temperatures stayed in range (peak ${maxTemp.toFixed(0)} °C).`);
+  }
+  let minSats=null,maxHdop=null;
+  if(c.gps_sats){minSats=minOf(c.gps_sats);
+    if(minSats<T.satsCrit){pen.GPS+=6;add('critical','GPS',`GPS satellites fell to ${minSats.toFixed(0)}. Position hold and return-to-home are unreliable below 6. Avoid flying near buildings or trees, or recheck the antenna.`)}
+    else if(minSats<T.satsWarn){pen.GPS+=3;add('warning','GPS',`GPS satellites dipped to ${minSats.toFixed(0)}. Check the antenna position and keep it clear of power wires.`)}}
+  if(c.gps_hdop){maxHdop=maxOf(c.gps_hdop);
+    if(maxHdop>T.hdopCrit){pen.GPS+=4;add('critical','GPS',`GPS accuracy got poor (HDOP up to ${maxHdop.toFixed(1)}). Position may drift, so do not rely on autonomous missions in this condition.`)}
+    else if(maxHdop>T.hdopWarn){pen.GPS+=2;add('warning','GPS',`GPS accuracy degraded (HDOP up to ${maxHdop.toFixed(1)}).`)}}
+  if((minSats!==null||maxHdop!==null)&&!F.some(f=>f.component==='GPS'))add('ok','GPS','GPS health was good for the whole flight.');
+
+  const breakdown={};let lost=0;for(const k in pen){breakdown[k]=Math.round(Math.min(pen[k],CAPS[k])*10)/10;lost+=breakdown[k]}
+  const score=Math.round(Math.max(0,100-lost));
+  const crit=F.some(f=>f.severity==='critical'),warn=F.some(f=>f.severity==='warning');
+  let status='GREEN',verdict='GO';
+  if(score<T.yellow||crit){status='RED';verdict='NO-GO'}else if(score<T.green||warn){status='YELLOW';verdict='CAUTION'}
+  F.sort((a,b)=>SEV[a.severity]-SEV[b.severity]);
+  const ids=[...new Set([...vibIds,...tempIds])].sort((a,b)=>a-b);
+  const motors=ids.map(k=>({id:k,avg:rows[k]?.avg,p95:rows[k]?.p95,trend:rows[k]?.trend,tmax:rows[k]?.tmax,status:flags[k]||'OK'}));
+  let movN=0,movS=0;if(c.speed_ms)for(let i=0;i<n;i++)if(c.speed_ms[i]>1){movN++;movS+=c.speed_ms[i]}
+  const stats={durationS:c.time_s[n-1]-c.time_s[0],maxAlt:c.altitude_m?maxOf(c.altitude_m):null,avgSpeed:movN?movS/movN:null,
+    minCell:cmin,endCell:cend,minPack:minOf(c.battery_v),lows,dips,ir,maxTemp,maxVib:vibIds.length?Math.max(...vibIds.map(k=>rows[k].p95)):null,minSats,maxHdop};
+  return {score,status,verdict,findings:F,stats,motors,breakdown,df,cell,cells};
+}
+
+/* ---------- mission simulator ---------- */
+const G=9.81,FM=.70,ETA=.80,CDA=.05,USABLE=.85,MINGS=.5;
+function airDensity(tc,el){return 101325*Math.pow(1-2.25577e-5*el,5.25588)/(287.05*(tc+273.15))}
+function hoverPower(mass,d,rho){const thrust=mass*G,area=d.rotors*Math.PI*Math.pow(d.propIn*.0254/2,2);return Math.pow(thrust,1.5)/Math.sqrt(2*rho*area)/(FM*ETA)}
+function cruisePower(mass,d,rho,v){return hoverPower(mass,d,rho)*(1-.2*Math.min(v/12,1))+.5*rho*v**3*CDA/ETA}
+function legGS(v,w,ang,out){const th=(out?ang:ang+180)*Math.PI/180,head=w*Math.cos(th),cross=Math.abs(w*Math.sin(th));return cross>=v?0:Math.sqrt(v*v-cross*cross)-head}
+function simulate(d,m){
+  const rho=airDensity(m.tempC,m.elevM),mass=d.emptyKg+m.payloadKg,pH=hoverPower(mass,d,rho),pC=cruisePower(mass,d,rho,d.cruise);
+  const gsO=legGS(d.cruise,m.windMs,m.windDeg,true),gsB=m.roundTrip?legGS(d.cruise,m.windMs,m.windDeg,false):Infinity;
+  const feasible=gsO>=MINGS&&gsB>=MINGS;
+  const cold=Math.max(.6,1-.005*Math.max(0,20-m.tempC));
+  const usable=d.capMah/1000*d.cells*3.7*d.healthPct/100*cold*USABLE,hoverWh=pH*m.overheadS/3600;
+  const F=[],add=(s,c,t)=>F.push({severity:s,component:c,message:t});
+  let reserve=-100,used=200,mission=0,maxKm=0,energy=NaN,timeline=[[0,100]];
+  if(feasible){
+    const tO=m.distKm*1000/gsO,tB=m.roundTrip?m.distKm*1000/gsB:0;
+    energy=hoverWh+pC*(tO+tB)/3600;
+    const perKm=pC/3600*1000*(1/gsO+(m.roundTrip?1/gsB:0));
+    maxKm=Math.max(0,(usable*(1-m.reservePct/100)-hoverWh)/perKm);
+    used=energy/usable*100;reserve=100-used;mission=(tO+tB+m.overheadS)/60;
+    const segs=[[m.overheadS/2,pH],[tO,pC]];if(m.roundTrip)segs.push([tB,pC]);segs.push([m.overheadS/2,pH]);
+    let t=0,e=0;for(const [dur,p] of segs){const k=Math.max(1,Math.floor(dur/5)),h=dur/k;for(let i=0;i<k;i++){t+=h;e+=p*h/3600;timeline.push([t/60,100-e/usable*100])}}
+  }
+  const req=m.reservePct;let rank=!feasible?2:reserve>=req?0:reserve>=req*.6?1:2;
+  if(mass>d.mtowKg){rank=2;add('critical','Weight',`Take-off weight ${mass.toFixed(1)} kg is above the ${d.mtowKg.toFixed(1)} kg limit. Reduce payload by at least ${(mass-d.mtowKg).toFixed(1)} kg.`)}
+  if(!feasible)add('critical','Wind',`Wind of ${m.windMs.toFixed(0)} m/s at this angle is too strong for a ${d.cruise.toFixed(0)} m/s cruise. The drone cannot make headway on at least one leg. Do not fly.`);
+  else if(rank===0)add('ok','Battery',`Predicted battery reserve at landing is ${reserve.toFixed(0)}%, above the ${req.toFixed(0)}% requirement.`);
+  else if(rank===1)add('warning','Battery',`Reserve at landing would be only ${reserve.toFixed(0)}% (target ${req.toFixed(0)}%). Shorten the one-way distance to about ${maxKm.toFixed(1)} km or trim payload.`);
+  else add('critical','Battery',`Reserve at landing would be just ${reserve.toFixed(0)}%, a high risk of a forced landing. The maximum safe one-way distance in these conditions is about ${maxKm.toFixed(1)} km.`);
+  if(m.windMs>m.windLimit*1.3){rank=2;add('critical','Wind',`Wind of ${m.windMs.toFixed(0)} m/s is well above the ${m.windLimit} m/s operating limit. Do not fly.`)}
+  else if(m.windMs>m.windLimit){rank=Math.max(rank,1);add('warning','Wind',`Wind of ${m.windMs.toFixed(0)} m/s exceeds the ${m.windLimit} m/s typical limit. Expect poor stability and higher power draw.`)}
+  if(d.healthPct<80){rank=Math.max(rank,1);add('warning','Battery',`Battery health is ${d.healthPct.toFixed(0)}%, so real endurance can fall below this estimate.`)}
+  if(m.tempC<15)add('info','Battery',`Cold weather (${m.tempC.toFixed(0)} °C) cuts usable battery capacity by about ${((1-cold)*100).toFixed(0)}%. Warm the pack before flight.`);
+  if(m.elevM>1500)add('info','Air density',`Thin air at ${m.elevM.toFixed(0)} m raises hover power. The model already accounts for it.`);
+  F.sort((a,b)=>SEV[a.severity]-SEV[b.severity]);
+  return {feasible,verdict:['GO','CAUTION','NO-GO'][rank],status:['GREEN','YELLOW','RED'][rank],reserve,used,energy,usable,mission,maxKm,mass,pH,pC,gsO,gsB,findings:F,timeline};
+}
+function reserveVsWind(d,m,winds,payloads){
+  const series=payloads.map(p=>({name:p+' kg payload',data:winds.map(w=>{const r=simulate(d,Object.assign({},m,{windMs:w,payloadKg:p}));return[w,r.feasible?Math.max(r.reserve,-20):-20]})}));return series;
+}
+/*LOGIC_END*/
+
+/* ====================== UI ====================== */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SC=['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--accent)'];
+const state={src:'healthy',raw:null,name:'',res:null,sim:null,simIn:null,log:[],err:''};
+try{const s=localStorage.getItem('aeroguard.log');if(s)state.log=JSON.parse(s)||[]}catch(e){}
+const saveLog=()=>{try{localStorage.setItem('aeroguard.log',JSON.stringify(state.log))}catch(e){}};
+
+function niceTicks(lo,hi,n=5){const span=hi-lo||1,raw=span/n,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag,step=(f<1.5?1:f<3?2:f<7?5:10)*mag,out=[];
+  for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step)out.push(+v.toFixed(10));return out}
+function lineChart({series,hlines=[],xLabel,yLabel,h=230,yMin,yMax}){
+  const W=720,m={l:52,r:14,t:10,b:38};let xs=[],ys=[];
+  series.forEach(s=>s.data.forEach(p=>{xs.push(p[0]);ys.push(p[1])}));hlines.forEach(l=>ys.push(l.y));
+  const x0=Math.min(...xs),x1=Math.max(...xs);let y0=yMin??Math.min(...ys),y1=yMax??Math.max(...ys);
+  const pad=(y1-y0)*.08||1;if(yMin===undefined)y0-=pad;if(yMax===undefined)y1+=pad;
+  const X=v=>m.l+(v-x0)/((x1-x0)||1)*(W-m.l-m.r),Y=v=>h-m.b-(v-y0)/((y1-y0)||1)*(h-m.t-m.b);
+  let g='';niceTicks(y0,y1).forEach(t=>{g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)"/><text x="${m.l-6}" y="${Y(t)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${+t.toFixed(2)}</text>`});
+  niceTicks(x0,x1,6).forEach(t=>{g+=`<text x="${X(t)}" y="${h-m.b+16}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${+t.toFixed(2)}</text>`});
+  hlines.forEach(l=>{g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(l.y)}" y2="${Y(l.y)}" stroke="${l.color}" stroke-width="1.4" stroke-dasharray="6 4"/>`});
+  series.forEach((s,i)=>{const k=Math.max(1,Math.ceil(s.data.length/360));const pts=s.data.filter((_,j)=>j%k===0||j===s.data.length-1).map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ');
+    g+=`<polyline fill="none" stroke="${s.color||SC[i%SC.length]}" stroke-width="1.7" stroke-linejoin="round" points="${pts}"/>`});
+  g+=`<text x="${(m.l+W-m.r)/2}" y="${h-4}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(xLabel)}</text>`;
+  g+=`<text transform="translate(12 ${(m.t+h-m.b)/2}) rotate(-90)" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(yLabel)}</text>`;
+  const leg=series.map((s,i)=>`<span><i style="border-color:${s.color||SC[i%SC.length]}"></i>${esc(s.name)}</span>`).join('')+hlines.map(l=>`<span><i class="dash" style="border-color:${l.color}"></i>${esc(l.label)}</span>`).join('');
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(yLabel)} over ${esc(xLabel)}">${g}</svg><div class="legend">${leg}</div></div>`;
+}
+const findingsHTML=f=>`<ul class="find">${f.map(x=>`<li><span class="pill ${x.severity}">${({critical:'CRITICAL',warning:'WARNING',ok:'OK',info:'INFO'})[x.severity]}</span><div><span class="comp">${esc(x.component)}</span> ${esc(x.message)}</div></li>`).join('')}</ul>`;
+const fmt=(v,d=1,u='')=>v===null||v===undefined||!isFinite(v)?'n/a':v.toFixed(d)+u;
+const mmss=s=>`${Math.floor(s/60)} min ${Math.floor(s%60)} s`;
+
+function profile(){const g=id=>$(id).value;return{
+  cells:+g('cells'),capMah:+g('cap')||22000,healthPct:+g('health')||100,emptyKg:+g('empty')||4.8,mtowKg:+g('mtow')||7.5,
+  rotors:+g('rotors'),propIn:+g('prop')||15,cruise:+g('cruise')||10}}
+function meta(){return{droneId:$('droneId').value,operator:$('operator').value,pilot:$('pilot').value,date:new Date().toISOString().slice(0,10)}}
+
+function renderHealth(){
+  const out=$('healthOut');
+  if(state.err){out.innerHTML=`<div class="err" role="alert">${esc(state.err)}</div>`;return}
+  const r=state.res;
+  if(!r){out.innerHTML='<div class="empty">Choose a sample flight or upload a CSV to see the health check.</div>';return}
+  const s=r.stats,d=r.df.c,tm=Array.from(d.time_s,t=>t/60);
+  const series=(kind)=>motorIds(d,kind).map((k,i)=>({name:'Motor #'+k,data:Array.from(d['motor'+k+'_'+kind],(v,j)=>[tm[j],v])}));
+  const vib=series('vib'),tmp=series('temp');
+  out.innerHTML=`
+  <div class="cols">
+    <div class="stack">
+      <div class="verdict ${r.status}"><div class="tag">${r.status} · health score</div><div class="big">${r.verdict} · ${r.score}/100</div>
+        <div class="small">Score lost: ${Object.entries(r.breakdown).map(([k,v])=>k+' −'+v).join(', ')}</div></div>
+    </div>
+    <div class="panel"><h2 style="margin-bottom:6px">Alerts and recommendations</h2>${findingsHTML(r.findings)}</div>
+  </div>
+  <div class="metrics">
+    <div><div class="k">Flight time</div><div class="v">${mmss(s.durationS)}</div></div>
+    <div><div class="k">Max altitude</div><div class="v">${fmt(s.maxAlt,0,' m')}</div></div>
+    <div><div class="k">Lowest battery</div><div class="v">${s.minCell.toFixed(2)} V/cell</div></div>
+    <div><div class="k">Max motor temp</div><div class="v">${fmt(s.maxTemp,0,' °C')}</div></div>
+    <div><div class="k">Max vibration (P95)</div><div class="v">${fmt(s.maxVib,0,' m/s²')}</div></div>
+  </div>
+  <div class="panel stack"><h3>Battery voltage</h3>${lineChart({series:[{name:'Battery (V per cell)',data:Array.from(r.cell,(v,j)=>[tm[j],v]),color:'var(--s1)'}],
+    hlines:[{y:T.cellWarn,label:'Caution 3.50 V',color:'var(--warn)'},{y:T.cellCrit,label:'Critical 3.30 V',color:'var(--crit)'}],xLabel:'Time (min)',yLabel:'V per cell'})}</div>
+  ${vib.length?`<div class="panel stack"><h3>Motor vibration</h3>${lineChart({series:vib,hlines:[{y:T.vibWarn,label:'Caution 30',color:'var(--warn)'},{y:T.vibCrit,label:'Critical 60',color:'var(--crit)'}],xLabel:'Time (min)',yLabel:'m/s²'})}</div>`:''}
+  ${tmp.length?`<div class="panel stack"><h3>Motor temperature</h3>${lineChart({series:tmp,hlines:[{y:T.tempWarn,label:'Caution 70 °C',color:'var(--warn)'},{y:T.tempCrit,label:'Critical 85 °C',color:'var(--crit)'}],xLabel:'Time (min)',yLabel:'°C'})}</div>`:''}
+  ${r.motors.length?`<div class="panel stack"><h3>Per-motor check</h3><div class="tw"><table><thead><tr><th>Motor</th><th class="num">Avg vib (m/s²)</th><th class="num">P95 vib (m/s²)</th><th class="num">Vib trend</th><th class="num">Max temp (°C)</th><th>Status</th></tr></thead><tbody>${r.motors.map(m=>`<tr><td>#${m.id}</td><td class="num">${fmt(m.avg)}</td><td class="num">${fmt(m.p95)}</td><td class="num">${m.trend===undefined?'n/a':(Math.round(m.trend)>0?'+':'')+Math.round(m.trend)+'%'}</td><td class="num">${fmt(m.tmax)}</td><td class="st-${m.status}">${m.status}</td></tr>`).join('')}</tbody></table></div></div>`:''}`;
+}
+
+function runSim(){
+  const d=profile(),dirSel=+$('s-dir').value;
+  const p={distKm:+$('s-dist').value,roundTrip:$('s-rt').checked,payloadKg:+$('s-pay').value,windMs:+$('s-wind').value,windDeg:dirSel,tempC:+$('s-temp').value,
+    elevM:+$('s-elev').value,reservePct:+$('s-res').value,overheadS:90,windLimit:10};
+  const drone={cells:d.cells,capMah:d.capMah,healthPct:d.healthPct,emptyKg:d.emptyKg,mtowKg:d.mtowKg,rotors:d.rotors,propIn:d.propIn,cruise:d.cruise};
+  [['dist','km'],['pay','kg'],['wind','m/s'],['temp','°C'],['elev','m'],['res','%']].forEach(([k,u])=>$('o-'+k).textContent=$('s-'+k).value+' '+u);
+  state.sim=simulate(drone,p);
+  state.simIn={Route:p.distKm+' km '+(p.roundTrip?'round trip':'one way'),Payload:p.payloadKg+' kg',Wind:p.windMs+' m/s ('+$('s-dir').selectedOptions[0].text.toLowerCase()+')',Temp:p.tempC+' °C',Elevation:p.elevM+' m',req:p.reservePct};
+  const r=state.sim,sub=r.feasible?`Predicted reserve at landing: ${r.reserve.toFixed(0)}% (target ${p.reservePct}%)`:'The drone cannot make headway against this wind';
+  const mx=Math.max(p.payloadKg,0),pays=[...new Set([0,Math.round(mx*10)/10,Math.round(Math.max(d.mtowKg-d.emptyKg,0)*10)/10])].sort((a,b)=>a-b);
+  const winds=Array.from({length:15},(_,i)=>i);
+  const sweep=reserveVsWind(drone,p,winds,pays);
+  $('simOut').innerHTML=`
+    <div class="verdict ${r.status}"><div class="tag">${r.status} · mission check</div><div class="big">${r.verdict}</div><div class="small">${esc(sub)}</div></div>
+    <div class="panel"><ul class="find" style="margin:0">${findingsHTML(r.findings).replace(/^<ul class="find">|<\/ul>$/g,'')}</ul></div>
+    ${r.feasible?`<div class="metrics">
+      <div><div class="k">Reserve at landing</div><div class="v">${r.reserve.toFixed(0)}%</div></div>
+      <div><div class="k">Mission time</div><div class="v">${r.mission.toFixed(0)} min</div></div>
+      <div><div class="k">Max safe one-way range</div><div class="v">${r.maxKm.toFixed(1)} km</div></div>
+      <div><div class="k">Take-off weight</div><div class="v">${r.mass.toFixed(1)} kg</div></div></div>
+    <div class="panel stack"><h3>Predicted battery use over the mission</h3>${lineChart({series:[{name:'Predicted battery remaining',data:r.timeline,color:'var(--s1)'}],hlines:[{y:p.reservePct,label:'Required reserve '+p.reservePct+'%',color:'var(--warn)'},{y:0,label:'Empty',color:'var(--crit)'}],xLabel:'Time (min)',yLabel:'Battery remaining (%)',yMin:Math.min(-5,Math.min(...r.timeline.map(t=>t[1]))-5),yMax:105})}</div>`:''}
+    <div class="panel stack"><h3>What-if: reserve at landing vs wind and payload</h3>${lineChart({series:sweep,hlines:[{y:p.reservePct,label:'Required reserve '+p.reservePct+'%',color:'var(--warn)'},{y:0,label:'Empty',color:'var(--crit)'}],xLabel:'Wind speed (m/s)',yLabel:'Reserve (%)'})}</div>`;
+}
+
+function entry(r){const s=r.stats,top=r.findings.find(f=>f.severity==='critical'||f.severity==='warning');const m=meta();
+  return{Date:m.date,'Drone ID':m.droneId,Pilot:m.pilot,'Flight log':state.name,'Flight time (min)':+(s.durationS/60).toFixed(1),'Max altitude (m)':s.maxAlt===null?'':Math.round(s.maxAlt),
+    'Lowest battery (V/cell)':+s.minCell.toFixed(2),'Battery lows':s.lows,'Max motor temp (°C)':s.maxTemp===null?'':Math.round(s.maxTemp),'Health score':r.score,Verdict:r.verdict,
+    'Critical alerts':r.findings.filter(f=>f.severity==='critical').length,Warnings:r.findings.filter(f=>f.severity==='warning').length,'Top alert':top?top.message:'No alerts'}}
+function renderLog(){
+  const L=state.log;
+  $('logOut').innerHTML=L.length?`<table><thead><tr>${Object.keys(L[0]).map(k=>`<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>${L.map(e=>`<tr>${Object.entries(e).map(([k,v])=>`<td${k==='Top alert'?' class="wrapc"':''}>${k==='Verdict'?`<b class="st-${v==='GO'?'OK':v==='CAUTION'?'WATCH':'ALERT'}">${esc(v)}</b>`:esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<div class="empty">No flights logged yet. Add the current flight, or load the demo history.</div>';
+  renderReport();
+}
+function renderReport(){
+  const r=state.res,el=$('reportOut');
+  if(!r){el.innerHTML='<h2>Flight report</h2><div class="empty">Analyse a flight in tab 1 to see its report here.</div>';return}
+  const m=meta(),s=r.stats,sim=state.sim,inc=$('incSim').checked;
+  el.innerHTML=`<div class="top"><div><div class="tag">AeroGuard AI · flight health report</div><h2>${esc(m.droneId||'Drone')} · ${esc(m.date)}</h2>
+    <p class="note" style="margin:2px 0 0">Operator ${esc(m.operator||'-')} · Pilot ${esc(m.pilot||'-')} · Log ${esc(state.name)} · ${r.cells}S battery</p></div>
+    <div class="verdict ${r.status}" style="padding:8px 14px"><div class="big" style="font-size:1.5rem">${r.verdict} · ${r.score}/100</div></div></div>
+    <div class="metrics">
+      <div><div class="k">Flight time</div><div class="v">${mmss(s.durationS)}</div></div>
+      <div><div class="k">Max altitude</div><div class="v">${fmt(s.maxAlt,0,' m')}</div></div>
+      <div><div class="k">Lowest battery</div><div class="v">${s.minCell.toFixed(2)} V/cell</div></div>
+      <div><div class="k">Battery at landing</div><div class="v">${s.endCell.toFixed(2)} V/cell</div></div>
+      <div><div class="k">Battery-low events</div><div class="v">${s.lows}</div></div>
+      <div><div class="k">Battery resistance</div><div class="v">${fmt(s.ir,1,' mΩ')}</div></div>
+      <div><div class="k">Min GPS satellites</div><div class="v">${fmt(s.minSats,0)}</div></div>
+      <div><div class="k">Max HDOP</div><div class="v">${fmt(s.maxHdop,1)}</div></div></div>
+    <h3>Alerts and recommendations</h3>${findingsHTML(r.findings)}
+    ${inc&&sim?`<h3>Pre-flight mission plan: ${sim.verdict}</h3><p class="note" style="margin:0">${Object.entries(state.simIn).filter(([k])=>k!=='req').map(([k,v])=>k+' '+esc(v)).join(' · ')}${sim.feasible?` · reserve at landing ${sim.reserve.toFixed(0)}% · max safe one-way range ${sim.maxKm.toFixed(1)} km`:''}</p>`:''}
+    <p class="note">Advisory decision support. It does not replace manufacturer maintenance procedures or regulatory requirements.</p>`;
+}
+
+function refresh(){
+  state.err='';state.res=null;
+  if(state.src==='upload'){
+    state.raw=state.upl||null;state.err=state.uplErr||'';
+  }else{state.raw=generate(state.src);state.name='flight_'+state.src+'.csv (simulated)'}
+  if(state.raw){try{state.res=analyze(state.raw,profile().cells)}catch(e){state.err=e.message}}
+  renderHealth();runSim();renderLog();
+}
+
+/* tabs */
+const TABS=['health','sim','log'];
+TABS.forEach(t=>$('t-'+t).addEventListener('click',()=>{
+  TABS.forEach(o=>{$('t-'+o).setAttribute('aria-selected',o===t);$('p-'+o).hidden=o!==t});}));
+/* source */
+document.querySelectorAll('input[name=src]').forEach(r=>r.addEventListener('change',()=>{state.src=r.value;$('uploadBox').hidden=r.value!=='upload';refresh()}));
+$('file').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{state.uplErr='';try{state.upl=parseCSV(String(rd.result));state.name=f.name}catch(x){state.upl=null;state.uplErr=x.message}refresh()};
+  rd.onerror=()=>{state.upl=null;state.uplErr='Could not read that file.';refresh()};rd.readAsText(f)});
+/* inputs */
+['cells','cap','health','empty','mtow','rotors','prop','cruise'].forEach(id=>$(id).addEventListener('input',refresh));
+['droneId','operator','pilot'].forEach(id=>$(id).addEventListener('input',renderLog));
+$('simCtl').addEventListener('input',()=>{runSim();renderReport()});
+$('incSim').addEventListener('change',renderReport);
+/* logbook */
+$('b-add').addEventListener('click',()=>{if(!state.res){$('copyMsg').textContent='Analyse a flight first.';return}state.log.push(entry(state.res));saveLog();renderLog();$('copyMsg').textContent='Added to the logbook.'});
+$('b-demo').addEventListener('click',()=>{
+  const keep=[state.src,state.name];
+  ['healthy','warning','critical'].forEach((nm,i)=>{const r=analyze(generate(nm),6);state.name='flight_'+nm+'.csv (simulated)';
+    const e=entry(r);e.Date=new Date(Date.now()-(3-i)*2*864e5).toISOString().slice(0,10);state.log.push(e)});
+  state.name=keep[1];saveLog();renderLog();$('copyMsg').textContent='Loaded 3 demo flights.'});
+$('b-clear').addEventListener('click',()=>{state.log=[];saveLog();renderLog();$('csvBox').hidden=true;$('copyMsg').textContent='Logbook cleared.'});
+$('b-copy').addEventListener('click',()=>{
+  if(!state.log.length){$('copyMsg').textContent='The logbook is empty.';return}
+  const keys=Object.keys(state.log[0]),q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const csv=[keys.map(q).join(',')].concat(state.log.map(e=>keys.map(k=>q(e[k])).join(','))).join('\n');
+  const box=$('csvBox');box.value=csv;
+  const fallback=()=>{box.hidden=false;box.select();$('copyMsg').textContent='Press Ctrl+C (or Cmd+C) to copy the selected CSV.'};
+  try{navigator.clipboard.writeText(csv).then(()=>{$('copyMsg').textContent='Logbook copied as CSV. Paste it into Excel or Sheets.'},fallback)}catch(e){fallback()}});
+
+refresh();
+</script>
+
+</body></html>
